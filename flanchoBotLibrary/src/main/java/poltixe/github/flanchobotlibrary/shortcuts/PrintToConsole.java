@@ -84,6 +84,7 @@ public class PrintToConsole {
                             System.out.printf(topSeparator, "Multiplayer Matches");
 
                             List<Match> multiplayerMatchesPrintCopy = new ArrayList<Match>(multiplayerMatches);
+
                             for (Match match : multiplayerMatchesPrintCopy) {
                                 System.out.printf(TextColours.GREEN
                                         + "Match ID: %d, Match Name: %s, Game Started: %s, Map Name: %s Slot Info: %s\n"
@@ -105,6 +106,13 @@ public class PrintToConsole {
                             System.out.printf(topSeparator, "Online Players");
 
                             List<Player> onlinePlayersPrintCopy = new ArrayList<Player>(allOnlinePlayers);
+
+                            Collections.sort(onlinePlayersPrintCopy, new Comparator<Player>() {
+                                public int compare(Player left, Player right) {
+                                    return (int) (left.rank - right.rank);
+                                }
+                            });
+
                             for (Player player : onlinePlayersPrintCopy) {
                                 System.out.printf(TextColours.GREEN + "(#%s) %s, %s %s\n" + TextColours.RESET,
                                         player.rank, player.username, player.getStatus(), player.statusText);
