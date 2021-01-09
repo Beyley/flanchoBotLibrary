@@ -31,6 +31,11 @@ public abstract class BotClient {
     Timer keepaliveTimer = new Timer();
 
     /**
+     * The timer used to send keepalive packets to the server
+     */
+    Timer userStatusTimers = new Timer();
+
+    /**
      * The socket used to connect to the server
      */
     public Socket client = null;
@@ -258,7 +263,7 @@ public abstract class BotClient {
 
                                     this.packetSender.joinLobby();
 
-                                    startKeepalive();
+                                    startTimers();
                                     onAuthComplete();
 
                                     break;
@@ -359,21 +364,12 @@ public abstract class BotClient {
                                     allMultiplayerMatches.set(oldMatchesIndex, match);
                                     isExisting = true;
 
-                                    // System.out.printf(
-                                    // "Updated multiplayer match! MatchId:%d, IsInProgress:%s, Name:%s,
-                                    // Mapname:%s\n",
-                                    // match.matchId, match.inProgress, match.gameName, match.beatmapName);
-
                                     break;
                                 }
                             }
 
                             if (!isExisting) {
                                 allMultiplayerMatches.add(match);
-
-                                // System.out.printf(
-                                // "New multiplayer match! MatchId:%d, IsInProgress:%s, Name:%s, Mapname:%s\n",
-                                // match.matchId, match.inProgress, match.gameName, match.beatmapName);
                             }
 
                             this.console.multiplayerMatches = this.allMultiplayerMatches;
@@ -435,8 +431,10 @@ public abstract class BotClient {
                             boolean isExisting = false;
                             for (Player playerToCheck : allOnlinePlayers) {
                                 if (playerToCheck.userId == thisPlayer.userId) {
-                                    playerToCheck = thisPlayer;
+                                    Collections.replaceAll(allOnlinePlayers, playerToCheck, thisPlayer);
                                     isExisting = true;
+
+                                    break;
                                 }
                             }
 
@@ -505,7 +503,7 @@ public abstract class BotClient {
      */
     public abstract void onBotDisconnect();
 
-    private void stopKeepalive() {
+    private void stoptimers() {
         try {
             keepaliveTimer.cancel();
         } catch (IllegalStateException ex) {
@@ -513,12 +511,7 @@ public abstract class BotClient {
         }
     }
 
-    private void startKeepalive() {
-        // Timer starts after 25 seconds.
-        int begin = 25000;
-        // Timer executes every 25 seconds.
-        int timeinterval = 25000;
-
+    private void startTimers() {
         keepaliveTimer = new Timer();
 
         // Schedule the keepalive packet
@@ -528,7 +521,7 @@ public abstract class BotClient {
                 if (authenticated)
                     packetSender.sendHeartbeat();
             }
-        }, begin, timeinterval);
+        }, 25000, 25000);
     }
 
     /**
@@ -573,7 +566,7 @@ public abstract class BotClient {
         } catch (IOException ex) {
             this.console.printError("Connection to Flandrecho Failed! Reason: " + ex.getMessage());
 
-            stopKeepalive();
+            stoptimers();
             onBotDisconnect();
         }
     }

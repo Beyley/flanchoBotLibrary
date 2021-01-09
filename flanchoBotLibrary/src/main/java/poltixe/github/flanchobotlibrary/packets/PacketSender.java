@@ -88,6 +88,13 @@ public class PacketSender {
     }
 
     /**
+     * Requests a full user status update from the server
+     */
+    public void requestStatusUpdate() {
+        packetQueue.add(new SendRequestStatusUpdatePacket().getPacket());
+    }
+
+    /**
      * Update the status along with the status text
      * 
      * @param newStatus  The status to change to

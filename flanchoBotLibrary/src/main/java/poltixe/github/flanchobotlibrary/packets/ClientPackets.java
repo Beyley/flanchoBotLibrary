@@ -19,6 +19,10 @@ public class ClientPackets {
      */
     public static final short exit = 2;
     /**
+     * Requests a full status update
+     */
+    public static final short requestStatusUpdate = 3;
+    /**
      * Tells the server that the bot has joined the lobby
      */
     public static final short lobbyJoin = 31;
