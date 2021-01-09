@@ -4,6 +4,7 @@ import java.io.*;
 import java.net.*;
 import java.util.*;
 
+import org.apache.commons.lang3.SerializationUtils;
 import org.json.simple.parser.*;
 
 import poltixe.github.flanchobotlibrary.objects.Match;
@@ -431,8 +432,8 @@ public abstract class BotClient {
                             boolean isExisting = false;
                             for (Player playerToCheck : allOnlinePlayers) {
                                 if (playerToCheck.userId == thisPlayer.userId) {
-                                    if (beatmapUpdate) {
-                                        Player tempPlayer = playerToCheck;
+                                    if (!beatmapUpdate) {
+                                        Player tempPlayer = SerializationUtils.clone(playerToCheck);
 
                                         tempPlayer.rankedScore = thisPlayer.rankedScore;
                                         tempPlayer.accuracy = thisPlayer.accuracy;

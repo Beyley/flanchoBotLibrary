@@ -1,8 +1,10 @@
 package poltixe.github.flanchobotlibrary.objects;
 
+import java.io.Serializable;
+
 import poltixe.github.flanchobotlibrary.packets.SendUserStatusPacket.Status;
 
-public class Player {
+public class Player implements Serializable {
     public int userId;
 
     public byte status;
