@@ -319,7 +319,9 @@ public abstract class BotClient {
 
                             int userId = BitConverter.toInt32(reader.readNBytes(4), 0);
 
-                            for (Integer userIdToRemove : allPlayersInLobby) {
+                            List<Integer> playersInLobbyCopy = new ArrayList<Integer>(allPlayersInLobby);
+
+                            for (Integer userIdToRemove : playersInLobbyCopy) {
                                 if (userIdToRemove.intValue() == userId)
                                     allPlayersInLobby.remove(userIdToRemove);
                             }
@@ -383,9 +385,10 @@ public abstract class BotClient {
 
                             byte matchId = reader.readByte();
 
-                            for (Match match : allMultiplayerMatches) {
+                            List<Match> multiplayerMatchesCopy = new ArrayList<Match>(allMultiplayerMatches);
+
+                            for (Match match : multiplayerMatchesCopy) {
                                 if (match.matchId == matchId) {
-                                    // System.out.printf("Removing multiplayer match! MatchId:%d\n", match.matchId);
                                     allMultiplayerMatches.remove(match);
 
                                     break;
@@ -467,7 +470,9 @@ public abstract class BotClient {
 
                             int userId = BitConverter.toInt32(reader.readNBytes(4), 0);
 
-                            for (Player playerToRemove : allOnlinePlayers) {
+                            List<Player> onlinePlayersCopy = new ArrayList<Player>(allOnlinePlayers);
+
+                            for (Player playerToRemove : onlinePlayersCopy) {
                                 if (playerToRemove.userId == userId)
                                     allOnlinePlayers.remove(playerToRemove);
                             }
