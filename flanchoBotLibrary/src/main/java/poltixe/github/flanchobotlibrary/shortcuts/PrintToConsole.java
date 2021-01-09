@@ -83,7 +83,8 @@ public class PrintToConsole {
                             }
                             System.out.printf(topSeparator, "Multiplayer Matches");
 
-                            for (Match match : multiplayerMatches) {
+                            List<Match> multiplayerMatchesPrintCopy = new ArrayList<Match>(multiplayerMatches);
+                            for (Match match : multiplayerMatchesPrintCopy) {
                                 System.out.printf(TextColours.GREEN
                                         + "Match ID: %d, Match Name: %s, Game Started: %s, Map Name: %s Slot Info: %s\n"
                                         + TextColours.RESET, match.matchId, match.gameName, match.inProgress,
@@ -91,7 +92,8 @@ public class PrintToConsole {
                             }
                             System.out.printf(topSeparator, "Players in lobby");
 
-                            for (Integer userId : allPlayersInLobby) {
+                            List<Integer> playersInLobbyPrintCopy = new ArrayList<Integer>(allPlayersInLobby);
+                            for (Integer userId : playersInLobbyPrintCopy) {
                                 Player player = getPlayerFromId(userId.intValue());
                                 if (player == null) {
                                     System.out.printf(TextColours.GREEN + "%s\n" + TextColours.RESET,
@@ -102,7 +104,8 @@ public class PrintToConsole {
                             }
                             System.out.printf(topSeparator, "Online Players");
 
-                            for (Player player : allOnlinePlayers) {
+                            List<Player> onlinePlayersPrintCopy = new ArrayList<Player>(allOnlinePlayers);
+                            for (Player player : onlinePlayersPrintCopy) {
                                 System.out.printf(TextColours.GREEN + "(#%s) %s, %s %s\n" + TextColours.RESET,
                                         player.rank, player.username, player.getStatus(), player.statusText);
                             }
