@@ -431,7 +431,19 @@ public abstract class BotClient {
                             boolean isExisting = false;
                             for (Player playerToCheck : allOnlinePlayers) {
                                 if (playerToCheck.userId == thisPlayer.userId) {
-                                    Collections.replaceAll(allOnlinePlayers, playerToCheck, thisPlayer);
+                                    if (beatmapUpdate) {
+                                        Player tempPlayer = playerToCheck;
+
+                                        tempPlayer.rankedScore = thisPlayer.rankedScore;
+                                        tempPlayer.accuracy = thisPlayer.accuracy;
+                                        tempPlayer.playcount = thisPlayer.playcount;
+                                        tempPlayer.totalScore = thisPlayer.totalScore;
+                                        tempPlayer.rank = thisPlayer.rank;
+
+                                        Collections.replaceAll(allOnlinePlayers, playerToCheck, tempPlayer);
+                                    } else {
+                                        Collections.replaceAll(allOnlinePlayers, playerToCheck, thisPlayer);
+                                    }
                                     isExisting = true;
 
                                     break;
