@@ -30,7 +30,9 @@ public class PrintToConsole {
     public List<Player> allOnlinePlayers = new ArrayList<Player>();
 
     public Player getPlayerFromId(int userId) {
-        for (Player player : allOnlinePlayers) {
+        List<Player> allOnlinePlayersCopy = new ArrayList<Player>(allOnlinePlayers);
+
+        for (Player player : allOnlinePlayersCopy) {
             if (player.userId == userId)
                 return player;
         }
@@ -59,9 +61,15 @@ public class PrintToConsole {
             public void run() {
                 try {
                     while (true) {
-                        if (messageBuffer.equals(lastMessageBuffer) && multiplayerMatches.equals(lastMultiplayerMatches)
-                                && allPlayersInLobby.equals(lastAllPlayersInLobby)
-                                && allOnlinePlayers.equals(lastAllOnlinePlayers)) {
+                        List<Player> allOnlinePlayersPrintCopy = new ArrayList<Player>(allOnlinePlayers);
+                        List<Match> multiplayerMatchesPrintCopy = new ArrayList<Match>(multiplayerMatches);
+                        List<Integer> allPlayersInLobbyPrintCopy = new ArrayList<Integer>(allPlayersInLobby);
+                        List<String> messageBufferPrintCopy = new ArrayList<String>(messageBuffer);
+
+                        if (messageBufferPrintCopy.equals(lastMessageBuffer)
+                                && multiplayerMatchesPrintCopy.equals(lastMultiplayerMatches)
+                                && allPlayersInLobbyPrintCopy.equals(lastAllPlayersInLobby)
+                                && allOnlinePlayersPrintCopy.equals(lastAllOnlinePlayers)) {
                             isSame = true;
                         } else {
                             isSame = false;
@@ -77,24 +85,22 @@ public class PrintToConsole {
                             String separator = "------------------";
 
                             System.out.printf(topSeparator, "Recent Logs");
-                            for (int i = Math.max(messageBuffer.size() - 10, 0); i < messageBuffer.size(); i++) {
-                                String message = messageBuffer.get(i);
+                            for (int i = Math.max(messageBufferPrintCopy.size() - 10, 0); i < messageBufferPrintCopy
+                                    .size(); i++) {
+                                String message = messageBufferPrintCopy.get(i);
                                 System.out.println(message);
                             }
                             System.out.printf(topSeparator, "Multiplayer Matches");
-
-                            List<Match> multiplayerMatchesPrintCopy = new ArrayList<Match>(multiplayerMatches);
 
                             for (Match match : multiplayerMatchesPrintCopy) {
                                 System.out.printf(TextColours.GREEN
                                         + "Match ID: %d, Match Name: %s, Game Started: %s, Map Name: %s Slot Info: %s\n"
                                         + TextColours.RESET, match.matchId, match.gameName, match.inProgress,
-                                        match.beatmapName, match.getSlotsAsString(allOnlinePlayers));
+                                        match.beatmapName, match.getSlotsAsString(allOnlinePlayersPrintCopy));
                             }
                             System.out.printf(topSeparator, "Players in lobby");
 
-                            List<Integer> playersInLobbyPrintCopy = new ArrayList<Integer>(allPlayersInLobby);
-                            for (Integer userId : playersInLobbyPrintCopy) {
+                            for (Integer userId : allPlayersInLobbyPrintCopy) {
                                 Player player = getPlayerFromId(userId.intValue());
                                 if (player == null) {
                                     System.out.printf(TextColours.GREEN + "%s\n" + TextColours.RESET,
@@ -105,24 +111,22 @@ public class PrintToConsole {
                             }
                             System.out.printf(topSeparator, "Online Players");
 
-                            List<Player> onlinePlayersPrintCopy = new ArrayList<Player>(allOnlinePlayers);
-
-                            Collections.sort(onlinePlayersPrintCopy, new Comparator<Player>() {
+                            Collections.sort(allOnlinePlayersPrintCopy, new Comparator<Player>() {
                                 public int compare(Player left, Player right) {
                                     return (int) (left.rank - right.rank);
                                 }
                             });
 
-                            for (Player player : onlinePlayersPrintCopy) {
+                            for (Player player : allOnlinePlayersPrintCopy) {
                                 System.out.printf(TextColours.GREEN + "(#%s) %s, %s %s\n" + TextColours.RESET,
                                         player.rank, player.username, player.getStatus(), player.statusText);
                             }
                             System.out.println(separator);
 
-                            lastMessageBuffer = List.copyOf(messageBuffer);
-                            lastMultiplayerMatches = List.copyOf(multiplayerMatches);
-                            lastAllPlayersInLobby = List.copyOf(allPlayersInLobby);
-                            lastAllOnlinePlayers = List.copyOf(allOnlinePlayers);
+                            lastMessageBuffer = new ArrayList<String>(messageBuffer);
+                            lastMultiplayerMatches = new ArrayList<Match>(multiplayerMatches);
+                            lastAllPlayersInLobby = new ArrayList<Integer>(allPlayersInLobby);
+                            lastAllOnlinePlayers = new ArrayList<Player>(allOnlinePlayers);
                         }
                     }
                 } catch (InterruptedException ex) {
