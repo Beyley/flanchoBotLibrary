@@ -283,8 +283,9 @@ public abstract class BotClient {
                             String[] splitMessage = message.split(" ");
 
                             if (message.charAt(0) == prefix) {
-                                onCommandMessage(sender, target, splitMessage[0].substring(1), Arrays.copyOfRange(splitMessage, 1, splitMessage.length));
-);
+                                onCommandMessage(sender, target, splitMessage[0].substring(1),
+                                        Arrays.copyOfRange(splitMessage, 1, splitMessage.length));
+
                             } else {
                                 onMessage(sender, target, message);
                             }
