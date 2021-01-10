@@ -283,8 +283,8 @@ public abstract class BotClient {
                             String[] splitMessage = message.split(" ");
 
                             if (message.charAt(0) == prefix) {
-                                onCommandMessage(sender, target, splitMessage[0].substring(1),
-                                        String.join(" ", splitMessage));
+                                onCommandMessage(sender, target, splitMessage[0].substring(1), Arrays.copyOfRange(splitMessage, 1, splitMessage.length));
+);
                             } else {
                                 onMessage(sender, target, message);
                             }
@@ -509,7 +509,7 @@ public abstract class BotClient {
      * @param command   The command run
      * @param arguments The arguments of the command
      */
-    public abstract void onCommandMessage(String sender, String target, String command, String arguments);
+    public abstract void onCommandMessage(String sender, String target, String command, String[] arguments);
 
     /**
      * This runs when authentication is complete and the bot is connected
