@@ -59,7 +59,7 @@
       <artifactId>de.wenzlaff.linkchecker</artifactId>
       <version>0.0.4</version>
     </dependency>
-  
+
     <dependency>
       <groupId>com.twilio</groupId>
       <artifactId>kudu-sql-cli</artifactId>

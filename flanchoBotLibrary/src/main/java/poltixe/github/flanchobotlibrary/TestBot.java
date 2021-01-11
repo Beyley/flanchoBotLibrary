@@ -12,7 +12,7 @@ public class TestBot extends BotClient {
     }
 
     @Override
-    public void onCommandMessage(String sender, String target, String command, String arguments) {
+    public void onCommandMessage(String sender, String target, String command, String[] arguments) {
         // TODO Auto-generated method stub
 
     }
