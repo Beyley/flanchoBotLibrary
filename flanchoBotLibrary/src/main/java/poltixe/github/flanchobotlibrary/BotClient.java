@@ -258,6 +258,10 @@ public abstract class BotClient {
                                     packetCompression = false;
                                     packetLength = 0;
 
+                                    allPlayersInLobby = new ArrayList<Integer>();
+                                    allMultiplayerMatches = new ArrayList<Match>();
+                                    allOnlinePlayers = new ArrayList<Player>();
+
                                     Thread.sleep(100);
 
                                     this.packetSender = new PacketSender(client, console);
