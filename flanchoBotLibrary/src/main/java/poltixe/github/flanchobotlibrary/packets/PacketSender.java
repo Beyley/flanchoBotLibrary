@@ -1,9 +1,7 @@
 package poltixe.github.flanchobotlibrary.packets;
 
-import java.io.*;
-import java.net.*;
 import java.util.concurrent.ArrayBlockingQueue;
-
+import org.java_websocket.client.WebSocketClient;
 import poltixe.github.flanchobotlibrary.shortcuts.*;
 
 /**
@@ -20,7 +18,7 @@ public class PacketSender {
     /**
      * The socket used for sending data
      */
-    private Socket client;
+    private WebSocketClient client;
     PrintToConsole console;
 
     /**
@@ -28,7 +26,7 @@ public class PacketSender {
      * 
      * @param client The client you are connected to
      */
-    public PacketSender(Socket client, PrintToConsole console) {
+    public PacketSender(WebSocketClient client, PrintToConsole console) {
         this.packetQueue = new ArrayBlockingQueue<byte[]>(1024);
         this.client = client;
         this.console = console;
@@ -36,21 +34,18 @@ public class PacketSender {
         new Thread() {
             public void run() {
                 try {
-                    DataOutputStream dOut = new DataOutputStream(client.getOutputStream());
-
                     while (true) {
                         byte[] thisPacket = packetQueue.poll();
 
                         if (thisPacket != null) {
                             FileHandler.appendToPacketLog(thisPacket);
 
-                            dOut.write(thisPacket);
-                            dOut.flush();
+                            client.send(thisPacket);
                         }
 
                         Thread.sleep(50);
                     }
-                } catch (IOException | InterruptedException ex) {
+                } catch (InterruptedException ex) {
 
                 }
             }

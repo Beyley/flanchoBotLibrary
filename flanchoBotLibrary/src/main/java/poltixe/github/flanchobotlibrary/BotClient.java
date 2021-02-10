@@ -2,6 +2,7 @@ package poltixe.github.flanchobotlibrary;
 
 import java.io.*;
 import java.net.*;
+import java.nio.ByteBuffer;
 import java.util.*;
 
 import org.apache.commons.lang3.SerializationUtils;
@@ -16,6 +17,8 @@ import poltixe.github.flanchobotlibrary.shortcuts.BitConverter;
 import poltixe.github.flanchobotlibrary.shortcuts.Hash;
 import poltixe.github.flanchobotlibrary.shortcuts.PrintToConsole;
 import poltixe.github.flanchobotlibrary.shortcuts.Time;
+
+import org.java_websocket.client.WebSocketClient;
 
 /**
  * A bot for oldsu!
@@ -39,21 +42,12 @@ public abstract class BotClient {
     /**
      * The socket used to connect to the server
      */
-    public Socket client = null;
+    public WebSocketClient client = null;
 
     /**
      * The PacketSender used for sending packets to the server
      */
     public PacketSender packetSender = null;
-
-    /**
-     * The input stream used to read data from the server
-     */
-    public InputStream input = null;
-    /**
-     * The output stream used to send data to the server
-     */
-    public OutputStream output = null;
 
     /**
      * The username the bot connects with
@@ -171,330 +165,314 @@ public abstract class BotClient {
      * packet reader
      */
     public void initialize() throws InterruptedException, IOException, ParseException {
-        // Start the thread that reads for packets
-        readForPacketsThread = new Thread(readForPackets());
-        readForPacketsThread.setPriority(3);
-        readForPacketsThread.start();
+        try {
+            this.client = new Client(new URI(this.ip), this);
+            this.client.setTcpNoDelay(true);
+
+            connect();
+        } catch (URISyntaxException e) {
+        }
     }
 
     /**
      * This reads for packets at all times
      */
-    public Runnable readForPackets() throws InterruptedException, IOException, ParseException {
-        boolean doConnect = false;
+    public void readPacket(ByteBuffer packet) throws InterruptedException, IOException, ParseException {
+        int packetId = 0;
+        boolean packetCompression;
+        long packetLength;
 
-        while (true) {
-            if (doConnect) {
-                connect();
-                doConnect = false;
+        ByteBufferInputStream input = new ByteBufferInputStream(packet);
+
+        int available = input.available();
+
+        while (input.bbisLimit - input.bbisBuffer.position() != 0) {
+            lastPingTime = Time.now();
+
+            readBytes += input.read(readBuffer, readBytes, readBuffer.length - readBytes);
+
+            if (readBytes == readBuffer.length && readingHeader) {
+                packetId = BitConverter.toInt16(readBuffer, 0);
+                packetCompression = readBuffer[2] == 1;
+                packetLength = BitConverter.toUInt32(readBuffer, 3);
+
+                resetReadArray(false);
+                readBuffer = new byte[(int) packetLength];
             }
 
-            if (Time.now() - lastPingTime > pingTimeout * 1000) {
-                connect();
-                Thread.sleep(20);
+            if (readBytes != readBuffer.length)
                 continue;
-            }
 
-            if (client != null && client.isConnected()) {
-                int packetId = 0;
-                boolean packetCompression;
-                long packetLength;
+            switch (packetId) {
+                case BanchoPackets.loginReply:
+                    userID = BitConverter.toInt32(readBuffer, 0);
+                    privileges = readBuffer[4];
 
-                while (connected && input != null && input.available() > 0) {
-                    lastPingTime = Time.now();
+                    switch (userID) {
+                        case -1:
+                            console.printError("Authentication Failed! Invalid Login!");
 
-                    readBytes += input.read(readBuffer, readBytes, readBuffer.length - readBytes);
+                            Thread.sleep(1000);
 
-                    if (readBytes == readBuffer.length && readingHeader) {
-                        packetId = BitConverter.toInt16(readBuffer, 0);
-                        packetCompression = readBuffer[2] == 1;
-                        packetLength = BitConverter.toUInt32(readBuffer, 3);
-
-                        resetReadArray(false);
-                        readBuffer = new byte[(int) packetLength];
-                    }
-
-                    if (readBytes != readBuffer.length)
-                        continue;
-
-                    switch (packetId) {
-                        case BanchoPackets.loginReply:
-                            userID = BitConverter.toInt32(readBuffer, 0);
-                            privileges = readBuffer[4];
-
-                            switch (userID) {
-                                case -1:
-                                    console.printError("Authentication Failed! Invalid Login!");
-
-                                    Thread.sleep(1000);
-                                    doConnect = true;
-
-                                    break;
-                                case -2:
-                                    console.printError("Authentication Failed! Client too old!");
-
-                                    Thread.sleep(1000);
-                                    doConnect = true;
-
-                                    break;
-                                case -3:
-                                    console.printError("Your bot has been banned!");
-
-                                    break;
-                                default:
-                                    console.printMessage(String.format("[%s:%s] Bot Authenticated and running!",
-                                            String.valueOf(userID), username));
-
-                                    for (BanchoPrivileges privilege : BanchoPrivileges.values()) {
-                                        if (privileges == privilege.privilege.privilegeValue) {
-                                            console.printMessage(
-                                                    String.format("[%s:%s] You are %s", String.valueOf(userID),
-                                                            username, privilege.privilege.privilegeTitle));
-                                        }
-                                    }
-
-                                    authenticated = true;
-                                    packetId = 0;
-                                    packetCompression = false;
-                                    packetLength = 0;
-
-                                    allPlayersInLobby = new ArrayList<Integer>();
-                                    allMultiplayerMatches = new ArrayList<Match>();
-                                    allOnlinePlayers = new ArrayList<Player>();
-
-                                    Thread.sleep(100);
-
-                                    this.packetSender = new PacketSender(client, console);
-
-                                    this.packetSender.joinLobby();
-
-                                    startTimers();
-                                    onAuthComplete();
-
-                                    break;
-                            }
+                            connect();
 
                             break;
-                        case BanchoPackets.sendIrcMessage: {
-                            InputStream reader = new ByteArrayInputStream(readBuffer);
+                        case -2:
+                            console.printError("Authentication Failed! Client too old!");
 
-                            String sender = Uleb128.readString(reader);
-                            String message = Uleb128.readString(reader);
-                            String target = Uleb128.readString(reader);
+                            Thread.sleep(1000);
+                            connect();
 
-                            console.printIrcMessage(target, sender, message);
+                            break;
+                        case -3:
+                            console.printError("Your bot has been banned!");
 
-                            String[] splitMessage = message.split(" ");
+                            break;
+                        default:
+                            console.printMessage(String.format("[%s:%s] Bot Authenticated and running!",
+                                    String.valueOf(userID), username));
 
-                            if (message.charAt(0) == prefix) {
-                                onCommandMessage(sender, target, splitMessage[0].substring(1),
-                                        Arrays.copyOfRange(splitMessage, 1, splitMessage.length));
+                            for (BanchoPrivileges privilege : BanchoPrivileges.values()) {
+                                if (privileges == privilege.privilege.privilegeValue) {
+                                    console.printMessage(String.format("[%s:%s] You are %s", String.valueOf(userID),
+                                            username, privilege.privilege.privilegeTitle));
+                                }
+                            }
 
+                            authenticated = true;
+                            packetId = 0;
+                            packetCompression = false;
+                            packetLength = 0;
+
+                            allPlayersInLobby = new ArrayList<Integer>();
+                            allMultiplayerMatches = new ArrayList<Match>();
+                            allOnlinePlayers = new ArrayList<Player>();
+
+                            Thread.sleep(100);
+
+                            this.packetSender = new PacketSender(client, console);
+
+                            this.packetSender.joinLobby();
+
+                            startTimers();
+                            onAuthComplete();
+
+                            break;
+                    }
+
+                    break;
+                case BanchoPackets.sendIrcMessage: {
+                    InputStream reader = new ByteArrayInputStream(readBuffer);
+
+                    String sender = Uleb128.readString(reader);
+                    String message = Uleb128.readString(reader);
+                    String target = Uleb128.readString(reader);
+
+                    console.printIrcMessage(target, sender, message);
+
+                    String[] splitMessage = message.split(" ");
+
+                    if (message.charAt(0) == prefix) {
+                        onCommandMessage(sender, target, splitMessage[0].substring(1),
+                                Arrays.copyOfRange(splitMessage, 1, splitMessage.length));
+
+                    } else {
+                        onMessage(sender, target, message);
+                    }
+
+                    break;
+                }
+                case BanchoPackets.lobbyJoin: {
+                    LittleEndianInputStream reader = new LittleEndianInputStream(new ByteArrayInputStream(readBuffer));
+
+                    int userId = BitConverter.toInt32(reader.readNBytes(4), 0);
+
+                    boolean isExisting = false;
+                    for (Integer userIdToRemove : allPlayersInLobby) {
+                        if (userIdToRemove.intValue() == userId) {
+                            userIdToRemove = userId;
+                            isExisting = true;
+                        }
+                    }
+
+                    if (!isExisting) {
+                        allPlayersInLobby.add(userId);
+                    }
+
+                    this.console.allPlayersInLobby = this.allPlayersInLobby;
+
+                    break;
+                }
+                case BanchoPackets.lobbyPart: {
+                    LittleEndianInputStream reader = new LittleEndianInputStream(new ByteArrayInputStream(readBuffer));
+
+                    int userId = BitConverter.toInt32(reader.readNBytes(4), 0);
+
+                    List<Integer> playersInLobbyCopy = new ArrayList<Integer>(allPlayersInLobby);
+
+                    for (Integer userIdToRemove : playersInLobbyCopy) {
+                        if (userIdToRemove.intValue() == userId)
+                            allPlayersInLobby.remove(userIdToRemove);
+                    }
+
+                    this.console.allPlayersInLobby = this.allPlayersInLobby;
+
+                    break;
+                }
+                case BanchoPackets.matchNew: {
+                    LittleEndianInputStream reader = new LittleEndianInputStream(new ByteArrayInputStream(readBuffer));
+
+                    byte matchId = reader.readByte();
+                    boolean inProgress = reader.readBoolean();
+                    byte matchType = reader.readByte();
+                    int mods = reader.readUnsignedShort();
+                    String gameName = Uleb128.readString(reader);
+                    String beatmapName = Uleb128.readString(reader);
+                    int beatmapId = BitConverter.toInt32LE(reader.readNBytes(4), 0);
+                    String beatmapChecksum = Uleb128.readString(reader);
+
+                    Match.Slot[] slots = new Match.Slot[8];
+                    for (int i = 0; i < 8; i++) {
+                        Match.Slot slot = new Match.Slot();
+                        slot.status = reader.readByte();
+                        slots[i] = slot;
+                    }
+
+                    for (Match.Slot slot : slots) {
+                        if (!slot.getStatuses().contains(Slot.SlotStatus.Open)
+                                && !slot.getStatuses().contains(Slot.SlotStatus.Locked)) {
+                            slot.userId = BitConverter.toInt32(reader.readNBytes(4), 0);
+                        }
+                    }
+
+                    Match match = new Match(matchId, inProgress, matchType, mods, gameName, beatmapName, beatmapId,
+                            beatmapChecksum, slots);
+
+                    boolean isExisting = false;
+                    for (Match oldMatch : allMultiplayerMatches) {
+                        if (oldMatch.matchId == match.matchId) {
+                            int oldMatchesIndex = allMultiplayerMatches.indexOf(oldMatch);
+                            allMultiplayerMatches.set(oldMatchesIndex, match);
+                            isExisting = true;
+
+                            break;
+                        }
+                    }
+
+                    if (!isExisting) {
+                        allMultiplayerMatches.add(match);
+                    }
+
+                    this.console.multiplayerMatches = this.allMultiplayerMatches;
+
+                    break;
+                }
+                case BanchoPackets.matchDisband: {
+                    LittleEndianInputStream reader = new LittleEndianInputStream(new ByteArrayInputStream(readBuffer));
+
+                    byte matchId = reader.readByte();
+
+                    List<Match> multiplayerMatchesCopy = new ArrayList<Match>(allMultiplayerMatches);
+
+                    for (Match match : multiplayerMatchesCopy) {
+                        if (match.matchId == matchId) {
+                            allMultiplayerMatches.remove(match);
+
+                            break;
+                        }
+                    }
+
+                    this.console.multiplayerMatches = this.allMultiplayerMatches;
+
+                    break;
+                }
+                case BanchoPackets.handleOsuUpdate: {
+                    LittleEndianInputStream reader = new LittleEndianInputStream(new ByteArrayInputStream(readBuffer));
+
+                    Player thisPlayer = new Player();
+
+                    thisPlayer.userId = reader.readInt();
+                    byte clientType = reader.readByte();
+
+                    thisPlayer.status = reader.readByte();
+                    boolean beatmapUpdate = reader.readBoolean();
+
+                    if (beatmapUpdate) {
+                        thisPlayer.statusText = Uleb128.readString(reader);
+                        thisPlayer.mapChecksum = Uleb128.readString(reader);
+                        thisPlayer.enabledMods = reader.readUnsignedShort();
+                    }
+
+                    if (clientType > 0) {
+                        thisPlayer.rankedScore = BitConverter.toInt64LE(reader.readNBytes(8), 0);
+                        thisPlayer.accuracy = reader.readFloat();
+                        thisPlayer.playcount = BitConverter.toInt32(reader.readNBytes(4), 0);
+                        thisPlayer.totalScore = BitConverter.toInt64LE(reader.readNBytes(8), 0);
+                        thisPlayer.rank = BitConverter.toUInt16LE(reader.readNBytes(2), 0);
+                    }
+
+                    if (clientType == 2) {
+                        thisPlayer.username = Uleb128.readString(reader);
+                        thisPlayer.location = Uleb128.readString(reader);
+                        thisPlayer.timezone = reader.readUnsignedByte();
+                        thisPlayer.country = Uleb128.readString(reader);
+                    }
+
+                    boolean isExisting = false;
+                    for (Player playerToCheck : allOnlinePlayers) {
+                        if (playerToCheck.userId == thisPlayer.userId) {
+                            if (!beatmapUpdate) {
+                                Player tempPlayer = SerializationUtils.clone(playerToCheck);
+
+                                tempPlayer.rankedScore = thisPlayer.rankedScore;
+                                tempPlayer.accuracy = thisPlayer.accuracy;
+                                tempPlayer.playcount = thisPlayer.playcount;
+                                tempPlayer.totalScore = thisPlayer.totalScore;
+                                tempPlayer.rank = thisPlayer.rank;
+
+                                Collections.replaceAll(allOnlinePlayers, playerToCheck, tempPlayer);
                             } else {
-                                onMessage(sender, target, message);
+                                Collections.replaceAll(allOnlinePlayers, playerToCheck, thisPlayer);
                             }
-
-                            break;
-                        }
-                        case BanchoPackets.lobbyJoin: {
-                            LittleEndianInputStream reader = new LittleEndianInputStream(
-                                    new ByteArrayInputStream(readBuffer));
-
-                            int userId = BitConverter.toInt32(reader.readNBytes(4), 0);
-
-                            boolean isExisting = false;
-                            for (Integer userIdToRemove : allPlayersInLobby) {
-                                if (userIdToRemove.intValue() == userId) {
-                                    userIdToRemove = userId;
-                                    isExisting = true;
-                                }
-                            }
-
-                            if (!isExisting) {
-                                allPlayersInLobby.add(userId);
-                            }
-
-                            this.console.allPlayersInLobby = this.allPlayersInLobby;
-
-                            break;
-                        }
-                        case BanchoPackets.lobbyPart: {
-                            LittleEndianInputStream reader = new LittleEndianInputStream(
-                                    new ByteArrayInputStream(readBuffer));
-
-                            int userId = BitConverter.toInt32(reader.readNBytes(4), 0);
-
-                            List<Integer> playersInLobbyCopy = new ArrayList<Integer>(allPlayersInLobby);
-
-                            for (Integer userIdToRemove : playersInLobbyCopy) {
-                                if (userIdToRemove.intValue() == userId)
-                                    allPlayersInLobby.remove(userIdToRemove);
-                            }
-
-                            this.console.allPlayersInLobby = this.allPlayersInLobby;
-
-                            break;
-                        }
-                        case BanchoPackets.matchNew: {
-                            LittleEndianInputStream reader = new LittleEndianInputStream(
-                                    new ByteArrayInputStream(readBuffer));
-
-                            byte matchId = reader.readByte();
-                            boolean inProgress = reader.readBoolean();
-                            byte matchType = reader.readByte();
-                            int mods = reader.readUnsignedShort();
-                            String gameName = Uleb128.readString(reader);
-                            String beatmapName = Uleb128.readString(reader);
-                            int beatmapId = BitConverter.toInt32LE(reader.readNBytes(4), 0);
-                            String beatmapChecksum = Uleb128.readString(reader);
-
-                            Match.Slot[] slots = new Match.Slot[8];
-                            for (int i = 0; i < 8; i++) {
-                                Match.Slot slot = new Match.Slot();
-                                slot.status = reader.readByte();
-                                slots[i] = slot;
-                            }
-
-                            for (Match.Slot slot : slots) {
-                                if (!slot.getStatuses().contains(Slot.SlotStatus.Open)
-                                        && !slot.getStatuses().contains(Slot.SlotStatus.Locked)) {
-                                    slot.userId = BitConverter.toInt32(reader.readNBytes(4), 0);
-                                }
-                            }
-
-                            Match match = new Match(matchId, inProgress, matchType, mods, gameName, beatmapName,
-                                    beatmapId, beatmapChecksum, slots);
-
-                            boolean isExisting = false;
-                            for (Match oldMatch : allMultiplayerMatches) {
-                                if (oldMatch.matchId == match.matchId) {
-                                    int oldMatchesIndex = allMultiplayerMatches.indexOf(oldMatch);
-                                    allMultiplayerMatches.set(oldMatchesIndex, match);
-                                    isExisting = true;
-
-                                    break;
-                                }
-                            }
-
-                            if (!isExisting) {
-                                allMultiplayerMatches.add(match);
-                            }
-
-                            this.console.multiplayerMatches = this.allMultiplayerMatches;
-
-                            break;
-                        }
-                        case BanchoPackets.matchDisband: {
-                            LittleEndianInputStream reader = new LittleEndianInputStream(
-                                    new ByteArrayInputStream(readBuffer));
-
-                            byte matchId = reader.readByte();
-
-                            List<Match> multiplayerMatchesCopy = new ArrayList<Match>(allMultiplayerMatches);
-
-                            for (Match match : multiplayerMatchesCopy) {
-                                if (match.matchId == matchId) {
-                                    allMultiplayerMatches.remove(match);
-
-                                    break;
-                                }
-                            }
-
-                            this.console.multiplayerMatches = this.allMultiplayerMatches;
-
-                            break;
-                        }
-                        case BanchoPackets.handleOsuUpdate: {
-                            LittleEndianInputStream reader = new LittleEndianInputStream(
-                                    new ByteArrayInputStream(readBuffer));
-
-                            Player thisPlayer = new Player();
-
-                            thisPlayer.userId = reader.readInt();
-                            byte clientType = reader.readByte();
-
-                            thisPlayer.status = reader.readByte();
-                            boolean beatmapUpdate = reader.readBoolean();
-
-                            if (beatmapUpdate) {
-                                thisPlayer.statusText = Uleb128.readString(reader);
-                                thisPlayer.mapChecksum = Uleb128.readString(reader);
-                                thisPlayer.enabledMods = reader.readUnsignedShort();
-                            }
-
-                            if (clientType > 0) {
-                                thisPlayer.rankedScore = BitConverter.toInt64LE(reader.readNBytes(8), 0);
-                                thisPlayer.accuracy = reader.readFloat();
-                                thisPlayer.playcount = BitConverter.toInt32(reader.readNBytes(4), 0);
-                                thisPlayer.totalScore = BitConverter.toInt64LE(reader.readNBytes(8), 0);
-                                thisPlayer.rank = BitConverter.toUInt16LE(reader.readNBytes(2), 0);
-                            }
-
-                            if (clientType == 2) {
-                                thisPlayer.username = Uleb128.readString(reader);
-                                thisPlayer.location = Uleb128.readString(reader);
-                                thisPlayer.timezone = reader.readUnsignedByte();
-                                thisPlayer.country = Uleb128.readString(reader);
-                            }
-
-                            boolean isExisting = false;
-                            for (Player playerToCheck : allOnlinePlayers) {
-                                if (playerToCheck.userId == thisPlayer.userId) {
-                                    if (!beatmapUpdate) {
-                                        Player tempPlayer = SerializationUtils.clone(playerToCheck);
-
-                                        tempPlayer.rankedScore = thisPlayer.rankedScore;
-                                        tempPlayer.accuracy = thisPlayer.accuracy;
-                                        tempPlayer.playcount = thisPlayer.playcount;
-                                        tempPlayer.totalScore = thisPlayer.totalScore;
-                                        tempPlayer.rank = thisPlayer.rank;
-
-                                        Collections.replaceAll(allOnlinePlayers, playerToCheck, tempPlayer);
-                                    } else {
-                                        Collections.replaceAll(allOnlinePlayers, playerToCheck, thisPlayer);
-                                    }
-                                    isExisting = true;
-
-                                    break;
-                                }
-                            }
-
-                            if (!isExisting) {
-                                allOnlinePlayers.add(thisPlayer);
-                            }
-
-                            this.console.allOnlinePlayers = this.allOnlinePlayers;
-                            this.console.isSame = false;
-
-                            break;
-
-                        }
-                        case BanchoPackets.handleOsuDisconnect: {
-                            LittleEndianInputStream reader = new LittleEndianInputStream(
-                                    new ByteArrayInputStream(readBuffer));
-
-                            int userId = BitConverter.toInt32(reader.readNBytes(4), 0);
-
-                            List<Player> onlinePlayersCopy = new ArrayList<Player>(allOnlinePlayers);
-
-                            for (Player playerToRemove : onlinePlayersCopy) {
-                                if (playerToRemove.userId == userId)
-                                    allOnlinePlayers.remove(playerToRemove);
-                            }
-
-                            this.console.allOnlinePlayers = this.allOnlinePlayers;
-                            this.console.isSame = false;
+                            isExisting = true;
 
                             break;
                         }
                     }
 
-                    resetReadArray(true);
+                    if (!isExisting) {
+                        allOnlinePlayers.add(thisPlayer);
+                    }
+
+                    this.console.allOnlinePlayers = this.allOnlinePlayers;
+                    this.console.isSame = false;
+
+                    break;
+
+                }
+                case BanchoPackets.handleOsuDisconnect: {
+                    LittleEndianInputStream reader = new LittleEndianInputStream(new ByteArrayInputStream(readBuffer));
+
+                    int userId = BitConverter.toInt32(reader.readNBytes(4), 0);
+
+                    List<Player> onlinePlayersCopy = new ArrayList<Player>(allOnlinePlayers);
+
+                    for (Player playerToRemove : onlinePlayersCopy) {
+                        if (playerToRemove.userId == userId)
+                            allOnlinePlayers.remove(playerToRemove);
+                    }
+
+                    this.console.allOnlinePlayers = this.allOnlinePlayers;
+                    this.console.isSame = false;
+
+                    break;
                 }
             }
 
-            Thread.sleep(50);
+            resetReadArray(true);
         }
+
+        Thread.sleep(50);
     }
 
     /**
@@ -526,7 +504,7 @@ public abstract class BotClient {
      */
     public abstract void onBotDisconnect();
 
-    private void stoptimers() {
+    void stoptimers() {
         try {
             keepaliveTimer.cancel();
         } catch (IllegalStateException ex) {
@@ -563,34 +541,25 @@ public abstract class BotClient {
     /**
      * This connects the bot to the server
      */
-    private void connect() {
+    public void connect() {
         try {
-            this.client = new Socket(this.ip, this.port);
-
-            this.client.setTcpNoDelay(true);
-
-            this.input = client.getInputStream();
-            this.output = client.getOutputStream();
-
-            this.console.printMessage("Authenticating...");
+            this.client.connectBlocking();
 
             this.connected = true;
 
-            PrintWriter writer = new PrintWriter(output, true);
+            this.console.printMessage("Authenticating...");
 
-            writer.write(String.format("%s\r\n", this.username));
-            writer.flush();
-            writer.write(String.format("%s\r\n", this.password));
-            writer.flush();
-            writer.write(String.format("1400|%d|%s\r\n", Time.getCurrentTimezone(), this.showLocationData ? 1 : 0));
-            writer.flush();
+            this.client.send(String.format("%s\r\n%s\r\n1400|%d|%s\r\n", this.username, this.password,
+                    Time.getCurrentTimezone(), this.showLocationData ? 1 : 0));
 
             this.lastPingTime = Time.now();
-        } catch (IOException ex) {
+        } catch (InterruptedException ex) {
             this.console.printError("Connection to Flandrecho Failed! Reason: " + ex.getMessage());
 
             stoptimers();
             onBotDisconnect();
+
+            connect();
         }
     }
 }
