@@ -214,12 +214,22 @@ public abstract class BotClient {
 
                             Thread.sleep(1000);
 
+                            try {
+                                this.client = new Client(new URI(this.ip), this);
+                            } catch (URISyntaxException e) {
+                            }
+                            this.client.setTcpNoDelay(true);
                             connect();
 
                             break;
                         case -2:
                             console.printError("Authentication Failed! Client too old!");
 
+                            try {
+                                this.client = new Client(new URI(this.ip), this);
+                            } catch (URISyntaxException e) {
+                            }
+                            this.client.setTcpNoDelay(true);
                             Thread.sleep(1000);
                             connect();
 
