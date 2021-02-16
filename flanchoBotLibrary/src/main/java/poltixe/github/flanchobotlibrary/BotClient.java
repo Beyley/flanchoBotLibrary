@@ -569,6 +569,13 @@ public abstract class BotClient {
             stoptimers();
             onBotDisconnect();
 
+            try {
+                this.client = new Client(new URI(this.ip), this);
+                this.client.setTcpNoDelay(true);
+                Thread.sleep(1000);
+            } catch (Exception e) {
+            }
+
             connect();
         }
     }

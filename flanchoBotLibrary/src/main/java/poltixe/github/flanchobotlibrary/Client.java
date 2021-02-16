@@ -65,6 +65,13 @@ public class Client extends WebSocketClient {
         this.botClient.connected = false;
         this.botClient.stoptimers();
         this.botClient.onBotDisconnect();
+
+        try {
+            this.botClient.client = new Client(new URI(this.botClient.ip), this.botClient);
+            this.botClient.client.setTcpNoDelay(true);
+        } catch (URISyntaxException e) {
+        }
+
         this.botClient.connect();
     }
 }
