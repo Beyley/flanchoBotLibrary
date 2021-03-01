@@ -5,6 +5,8 @@ import java.net.*;
 import java.nio.ByteBuffer;
 import java.util.*;
 
+import com.fasterxml.jackson.databind.deser.std.ThrowableDeserializer;
+
 import org.apache.commons.lang3.SerializationUtils;
 import org.json.simple.parser.*;
 
@@ -13,10 +15,7 @@ import poltixe.github.flanchobotlibrary.objects.Player;
 import poltixe.github.flanchobotlibrary.objects.Match.Slot;
 import poltixe.github.flanchobotlibrary.packets.*;
 import poltixe.github.flanchobotlibrary.packets.BanchoPackets.BanchoPrivileges;
-import poltixe.github.flanchobotlibrary.shortcuts.BitConverter;
-import poltixe.github.flanchobotlibrary.shortcuts.Hash;
-import poltixe.github.flanchobotlibrary.shortcuts.PrintToConsole;
-import poltixe.github.flanchobotlibrary.shortcuts.Time;
+import poltixe.github.flanchobotlibrary.shortcuts.*;
 
 import org.java_websocket.client.WebSocketClient;
 
@@ -127,6 +126,8 @@ public abstract class BotClient {
     public List<Match> allMultiplayerMatches = new ArrayList<Match>();
     public List<Player> allOnlinePlayers = new ArrayList<Player>();
 
+    Thread connectionHandler;
+
     /**
      * The constructor for a bot
      * 
@@ -143,18 +144,43 @@ public abstract class BotClient {
         this.console = new PrintToConsole(username);
     }
 
+    public boolean doReconnect = true;
+
+    public Runnable runConnectionHandler() {
+        try {
+            while (true) {
+                if (this.doReconnect) {
+                    if (this.connected) {
+                        System.out.println("ATTEMPTED RECONNECT WHILE CONNECTED!!!");
+                        System.exit(0);
+                    }
+
+                    this.client = new Client(new URI(this.ip), this);
+                    this.client.setTcpNoDelay(true);
+                    this.connect();
+
+                    this.doReconnect = false;
+                }
+
+                Thread.sleep(10000);
+            }
+        } catch (Exception e) {
+            System.out.print(e.getMessage());
+            System.exit(0);
+        }
+        return null;
+    }
+
     /**
-     * This initializes the bot and runs the threads that run the keepalive and the
-     * packet reader
+     * This initializes the bot
      */
     public void initialize() throws InterruptedException, IOException, ParseException {
-        try {
-            this.client = new Client(new URI(this.ip), this);
-            this.client.setTcpNoDelay(true);
+        this.connectionHandler = new Thread(runConnectionHandler());
+        this.connectionHandler.setName("Connection handler");
 
-            connect();
-        } catch (URISyntaxException e) {
-        }
+        this.connectionHandler.start();
+
+        // this.doReconnect = true;
     }
 
     /**
@@ -164,28 +190,6 @@ public abstract class BotClient {
         int packetId = 0;
         boolean packetCompression;
         long packetLength;
-
-        /*
-         * input.available() DOES NOT WORK IN BYTEBUFFERINPUTSTREAM SO THIS HAS TO BE
-         * DONE
-         */
-        // while ((input.bbisLimit - input.bbisBuffer.position()) > 0) {
-        // lastPingTime = Time.now();
-        //
-        // readBytes += input.read(readBuffer, readBytes, readBuffer.length -
-        // readBytes);
-        //
-        // if (readBytes == readBuffer.length && readingHeader) {
-        // packetId = BitConverter.toInt16(readBuffer, 0);
-        // packetCompression = readBuffer[2] == 1;
-        // packetLength = BitConverter.toUInt32(readBuffer, 3);
-        //
-        // resetReadArray(false);
-        // readBuffer = new byte[(int) packetLength];
-        // }
-        //
-        // if (readBytes != readBuffer.length)
-        // continue;
 
         LittleEndianInputStream reader = new LittleEndianInputStream(new ByteArrayInputStream(packet.array()));
 
@@ -204,24 +208,13 @@ public abstract class BotClient {
 
                         Thread.sleep(1000);
 
-                        try {
-                            this.client = new Client(new URI(this.ip), this);
-                        } catch (URISyntaxException e) {
-                        }
-                        this.client.setTcpNoDelay(true);
-                        connect();
+                        this.doReconnect = true;
 
                         break;
                     case -2:
                         console.printError("Authentication Failed! Client too old!");
 
-                        try {
-                            this.client = new Client(new URI(this.ip), this);
-                        } catch (URISyntaxException e) {
-                        }
-                        this.client.setTcpNoDelay(true);
-                        Thread.sleep(1000);
-                        connect();
+                        this.doReconnect = true;
 
                         break;
                     case -3:
@@ -428,9 +421,8 @@ public abstract class BotClient {
                     }
                 }
 
-                if (!isExisting) {
+                if (!isExisting)
                     allOnlinePlayers.add(thisPlayer);
-                }
 
                 this.console.allOnlinePlayers = this.allOnlinePlayers;
                 this.console.isSame = false;
@@ -454,9 +446,6 @@ public abstract class BotClient {
                 break;
             }
         }
-
-        // resetReadArray(true);
-        // }
 
         Thread.sleep(50);
     }

@@ -25,6 +25,10 @@ public class ClientPackets {
     /**
      * Tells the server that the bot has joined the lobby
      */
+    public static final short spectateFrames = 19;
+    /**
+     * Tells the server that the bot has joined the lobby
+     */
     public static final short lobbyJoin = 31;
     /**
      * Tells the server that the bot has left the lobby

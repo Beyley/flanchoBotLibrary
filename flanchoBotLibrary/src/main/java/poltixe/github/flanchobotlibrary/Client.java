@@ -2,20 +2,13 @@ package poltixe.github.flanchobotlibrary;
 
 import java.io.IOException;
 import java.net.URI;
-import java.net.URISyntaxException;
 import java.nio.ByteBuffer;
 
 import org.java_websocket.client.WebSocketClient;
-import org.java_websocket.drafts.Draft;
-import org.java_websocket.drafts.Draft_6455;
 import org.java_websocket.handshake.ServerHandshake;
 import org.json.simple.parser.ParseException;
 
 public class Client extends WebSocketClient {
-    public Client(URI serverUri, Draft draft) {
-        super(serverUri, draft);
-    }
-
     BotClient botClient;
 
     public Client(URI serverURI, BotClient botClient) {
@@ -36,14 +29,17 @@ public class Client extends WebSocketClient {
         this.botClient.stoptimers();
         this.botClient.onBotDisconnect();
 
-        try {
-            this.botClient.client = new Client(new URI(this.botClient.ip), this.botClient);
-            this.botClient.client.setTcpNoDelay(true);
-        } catch (URISyntaxException e) {
-        }
-        this.botClient.client.setTcpNoDelay(true);
+        this.botClient.doReconnect = true;
 
-        this.botClient.connect();
+        // try {
+        // this.botClient.client = new Client(new URI(this.botClient.ip),
+        // this.botClient);
+        // this.botClient.client.setTcpNoDelay(true);
+        // } catch (URISyntaxException e) {
+        // }
+        // this.botClient.client.setTcpNoDelay(true);
+
+        // this.botClient.connect();
     }
 
     @Override
@@ -66,12 +62,15 @@ public class Client extends WebSocketClient {
         this.botClient.stoptimers();
         this.botClient.onBotDisconnect();
 
-        try {
-            this.botClient.client = new Client(new URI(this.botClient.ip), this.botClient);
-            this.botClient.client.setTcpNoDelay(true);
-        } catch (URISyntaxException e) {
-        }
+        this.botClient.doReconnect = true;
 
-        this.botClient.connect();
+        // try {
+        // this.botClient.client = new Client(new URI(this.botClient.ip),
+        // this.botClient);
+        // this.botClient.client.setTcpNoDelay(true);
+        // } catch (URISyntaxException e) {
+        // }
+
+        // this.botClient.connect();
     }
 }
