@@ -34,4 +34,8 @@ public class ClientPackets {
      * Tells the server that the bot has left the lobby
      */
     public static final short lobbyPart = 30;
+    /**
+     * Tells the server that the bot has left the lobby
+     */
+    public static final short banBot = 192;
 }

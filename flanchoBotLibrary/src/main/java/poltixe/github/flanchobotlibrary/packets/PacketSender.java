@@ -71,6 +71,13 @@ public class PacketSender {
     /**
      * Disconnects the bot from the server
      */
+    public void banBot() {
+        packetQueue.add(new BanBotPacket().getPacket());
+    }
+
+    /**
+     * Disconnects the bot from the server
+     */
     public void joinLobby() {
         packetQueue.add(new SendJoinLobbyPacket().getPacket());
     }
