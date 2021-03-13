@@ -166,8 +166,9 @@ public abstract class BotClient {
 
                 Thread.sleep(10000);
             }
-        } catch (Exception e) {
-            System.out.print(e.getMessage());
+        } catch (InterruptedException | URISyntaxException e) {
+            System.out.printf("ERROR OCCURED IN RECONNECT HANDLER!! type:%s, message:%s\n", e.getClass(),
+                    e.getMessage());
             System.exit(1);
         }
         return null;
