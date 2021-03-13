@@ -150,7 +150,7 @@ public abstract class BotClient {
         try {
             while (true) {
                 if (this.doReconnect) {
-                    if (this.connected) {
+                    if (this.client.isOpen()) {
                         // System.out.println("ATTEMPTED RECONNECT WHILE CONNECTED!!!");
                         // System.exit(0);
 
