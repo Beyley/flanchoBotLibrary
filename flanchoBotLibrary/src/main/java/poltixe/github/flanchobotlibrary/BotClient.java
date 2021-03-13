@@ -149,13 +149,14 @@ public abstract class BotClient {
     public Runnable runConnectionHandler() {
         try {
             while (true) {
-                if (this.doReconnect && this.client != null) {
-                    if (this.client.isOpen()) {
-                        // System.out.println("ATTEMPTED RECONNECT WHILE CONNECTED!!!");
-                        // System.exit(0);
+                if (this.doReconnect) {
+                    if (this.client != null)
+                        if (this.client.isOpen()) {
+                            // System.out.println("ATTEMPTED RECONNECT WHILE CONNECTED!!!");
+                            // System.exit(0);
 
-                        this.client.close();
-                    }
+                            this.client.close();
+                        }
 
                     this.client = new Client(new URI(this.ip), this);
                     this.client.setTcpNoDelay(true);
