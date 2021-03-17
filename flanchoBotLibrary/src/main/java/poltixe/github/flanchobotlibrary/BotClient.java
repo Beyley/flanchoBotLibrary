@@ -528,7 +528,7 @@ public abstract class BotClient {
 
             this.console.printMessage("Authenticating...");
 
-            this.client.send(String.format("%s\r\n%s\r\n999999|%d|%s\r\n", this.username, this.password,
+            this.client.send(String.format("%s\r\n%s\r\n727727|%d|%s\r\n", this.username, this.password,
                     Time.getCurrentTimezone(), this.showLocationData ? 1 : 0));
 
             this.lastPingTime = Time.now();
